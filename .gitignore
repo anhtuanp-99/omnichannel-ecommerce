@@ -1,61 +1,38 @@
-### Compiled & Build Outputs ###
-target/
+# Build
+**/target/
+**/*.jar
+**/*.war
 !.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-*.class
-*.jar
-*.war
-*.ear
-.kotlin
 
-### Logs ###
-*.log
-logs/
-
-### IntelliJ IDEA ###
+# IDE
 .idea/
-*.iws
 *.iml
-*.ipr
-out/
-
-### Eclipse ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
+*.iws
 .vscode/
+.settings/
+.classpath
+.project
 
-### OS Generated (Windows & macOS) ###
+# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-desktop.ini
 
-### Docker & Infrastructure Data / Environment ###
-# Tránh commit dữ liệu persistent của database mount ra host
-docker/data/
-docker/*/data/
-*.env
-.env.local
+# Secrets — KHÔNG BAO GIỜ commit
+**/application-local.yml
+**/application-local.yaml
+.env
+.env.*
 !.env.example
+
+# Logs
+logs/
+*.log
+
+# Docker volumes (nếu bind mount)
+docker-data/
+
+# Testcontainers
+.testcontainers.properties
+
+# Node (nếu sau này thêm UI)
+node_modules/
