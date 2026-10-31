@@ -2,7 +2,6 @@ name: omni-ecom
 
 services:
   # ==================== PostgreSQL ====================
-  # 1 instance, 3 database: identity_db, order_db, payment_db
   postgres:
     image: postgres:16-alpine
     container_name: omni-postgres
@@ -22,7 +21,6 @@ services:
       retries: 10
 
   # ==================== MongoDB ====================
-  # Dùng cho catalog_db + notification_db
   mongodb:
     image: mongo:7
     container_name: omni-mongodb
@@ -52,9 +50,6 @@ services:
       retries: 10
 
   # ==================== Kafka (KRaft, no ZooKeeper) ====================
-  # 2 listeners:
-  #   - PLAINTEXT (kafka:9092)           → dùng khi service chạy TRONG Docker
-  #   - PLAINTEXT_HOST (localhost:29092) → dùng khi service chạy trên HOST (IDE)
   kafka:
     image: apache/kafka:3.7.0
     container_name: omni-kafka
