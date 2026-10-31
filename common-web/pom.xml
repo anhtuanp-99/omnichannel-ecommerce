@@ -20,6 +20,12 @@
             <artifactId>common</artifactId>
         </dependency>
 
+        <!-- Thư viện Logging API cho org.slf4j.MDC, Logger, LoggerFactory -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
         <!-- Chỉ servlet, không starter-web để không kéo Tomcat vào library -->
         <dependency>
             <groupId>org.springframework</groupId>

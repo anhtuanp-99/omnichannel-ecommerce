@@ -7,16 +7,16 @@ services:
     image: postgres:16-alpine
     container_name: omni-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:-postgres}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -27,7 +27,7 @@ services:
     image: mongo:7
     container_name: omni-mongodb
     ports:
-      - "27017:27017"
+      - "${MONGO_PORT:-27017}:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -41,7 +41,7 @@ services:
     image: redis:7-alpine
     container_name: omni-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     command: ["redis-server", "--appendonly", "yes"]
@@ -53,14 +53,13 @@ services:
 
   # ==================== Kafka (KRaft, no ZooKeeper) ====================
   # 2 listeners:
-  #   - PLAINTEXT (kafka:9092)       → dùng khi service chạy TRONG Docker
+  #   - PLAINTEXT (kafka:9092)           → dùng khi service chạy TRONG Docker
   #   - PLAINTEXT_HOST (localhost:29092) → dùng khi service chạy trên HOST (IDE)
-  # Project này dùng PLAINTEXT_HOST (localhost:29092)
   kafka:
     image: apache/kafka:3.7.0
     container_name: omni-kafka
     ports:
-      - "29092:29092"
+      - "${KAFKA_PORT:-29092}:29092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -91,7 +90,7 @@ services:
     image: provectuslabs/kafka-ui:latest
     container_name: omni-kafka-ui
     ports:
-      - "8090:8080"
+      - "${KAFKA_UI_PORT:-8090}:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
@@ -104,8 +103,8 @@ services:
     image: axllent/mailpit:latest
     container_name: omni-mailpit
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
     environment:
       MP_MAX_MESSAGES: 1000
     healthcheck:
@@ -115,14 +114,12 @@ services:
       retries: 5
 
   # ==================== Elasticsearch (profile "search") ====================
-  # Chỉ bật khi cần: docker compose --profile search up -d
-  # Tắt security + ML để không phải config SSL
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
     container_name: omni-elasticsearch
     profiles: ["search"]
     ports:
-      - "9200:9200"
+      - "${ES_PORT:-9200}:9200"
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
