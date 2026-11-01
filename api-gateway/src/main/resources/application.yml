@@ -1,0 +1,80 @@
+server:
+  port: ${GATEWAY_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+
+      routes:
+        # ===== Health check routes (Phase 1 Walking Skeleton) =====
+        - id: identity-health
+          uri: lb://identity-service
+          predicates:
+            - Path=/api/v1/identity/health
+          filters:
+            - RewritePath=/api/v1/identity/health, /actuator/health
+
+        - id: catalog-health
+          uri: lb://catalog-service
+          predicates:
+            - Path=/api/v1/catalog/health
+          filters:
+            - RewritePath=/api/v1/catalog/health, /actuator/health
+
+        - id: order-health
+          uri: lb://order-inventory-service
+          predicates:
+            - Path=/api/v1/order/health
+          filters:
+            - RewritePath=/api/v1/order/health, /actuator/health
+
+        - id: payment-health
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/v1/payment/health
+          filters:
+            - RewritePath=/api/v1/payment/health, /actuator/health
+
+        - id: notification-health
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notification/health
+          filters:
+            - RewritePath=/api/v1/notification/health, /actuator/health
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    reactor.netty: WARN
