@@ -16,6 +16,7 @@
         <module>common</module>
         <module>common-web</module>
         <module>discovery-server</module>
+        <module>api-gateway</module>
 
     </modules>
 
