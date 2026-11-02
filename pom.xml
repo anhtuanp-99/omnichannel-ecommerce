@@ -19,6 +19,7 @@
         <module>api-gateway</module>
         <module>identity-service</module>
         <module>catalog-service</module>
+        <module>order-inventory-service</module>
 
     </modules>
 
