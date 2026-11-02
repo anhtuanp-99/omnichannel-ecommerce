@@ -20,6 +20,7 @@
         <module>identity-service</module>
         <module>catalog-service</module>
         <module>order-inventory-service</module>
+        <module>payment-service</module>
 
     </modules>
 
