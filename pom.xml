@@ -18,6 +18,7 @@
         <module>discovery-server</module>
         <module>api-gateway</module>
         <module>identity-service</module>
+        <module>catalog-service</module>
 
     </modules>
 
