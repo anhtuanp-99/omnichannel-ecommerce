@@ -21,6 +21,7 @@
         <module>catalog-service</module>
         <module>order-inventory-service</module>
         <module>payment-service</module>
+        <module>notification-service</module>
 
     </modules>
 
