@@ -17,9 +17,9 @@
 .DS_Store
 Thumbs.db
 
-# Secrets — KHÔNG BAO GIỜ commit
+# Local Spring profiles
 **/application-local.yml
-**/application-local.yaml
+**/application-local.properties
 .env
 .env.*
 !.env.example
