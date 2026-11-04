@@ -26,6 +26,18 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
+        <!-- Cung cấp EnvironmentPostProcessor (không kéo embedded Tomcat) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+
+        <!-- Đọc file .env khi chạy local (version 3.0.0 kế thừa từ root pom) -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+        </dependency>
+
         <!-- Chỉ servlet, không starter-web để không kéo Tomcat vào library -->
         <dependency>
             <groupId>org.springframework</groupId>
