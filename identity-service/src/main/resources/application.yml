@@ -5,6 +5,60 @@ spring:
   application:
     name: identity-service
 
+  profiles:
+    active: local
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:identity_db}?currentSchema=public
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+
+  mail:
+    host: ${MAILPIT_HOST:localhost}
+    port: ${MAILPIT_SMTP_PORT:1025}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-secret-please-change-in-prod-32-bytes-minimum-ok}
+    access-token-ttl-seconds: 900       # 15 phút
+    refresh-token-ttl-seconds: 604800   # 7 ngày
+  security:
+    verify-ttl-seconds: 86400           # 24 giờ
+    reset-ttl-seconds: 3600             # 1 giờ
+    max-failed-attempts: 5
+    lock-duration-seconds: 900          # 15 phút
+  mail:
+    from: noreply@omni-ecom.local
+  public-base-url: http://localhost:8080
+
 eureka:
   client:
     service-url:
@@ -32,3 +86,5 @@ logging:
     console: "%d{ISO8601} [%X{correlationId:-}] %-5level %logger{36} - %msg%n"
   level:
     com.omni.identity: DEBUG
+    org.springframework.security: INFO
+    org.flywaydb: DEBUG
