@@ -1,13 +1,15 @@
 server:
-  port: 8082
+  port: ${CATALOG_SERVICE_PORT:8082}
 
 spring:
   application:
     name: catalog-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
 
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb://localhost:27017/catalog_db}
+      uri: ${MONGO_URI:mongodb://localhost:27018/catalog_db}
       auto-index-creation: true
     redis:
       host: ${REDIS_HOST:localhost}
@@ -26,23 +28,22 @@ spring:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:CHANGE_ME_THIS_IS_A_DEV_SECRET_32_BYTES_MINIMUM_OK}
+    secret: ${JWT_SECRET:REPLACE_WITH_HS256_SECRET_KEY_MIN_32_CHARS_LONG}
   upload:
-    dir: ${UPLOAD_DIR:/tmp/omni-catalog-uploads}
-    max-size-bytes: 5242880          # 5MB
+    dir: ${CATALOG_UPLOAD_DIR:${java.io.tmpdir}/omni-catalog-uploads}
+    max-size-bytes: 5242880
     allowed-mime: image/jpeg,image/png,image/webp
   search:
-    use-elasticsearch: true          # nếu false → luôn dùng Mongo
+    use-elasticsearch: true
   seed:
-    enabled: false                   # bật bằng --app.seed.enabled=true
+    enabled: false
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
   instance:
-    prefer-ip-address: false
-    hostname: localhost
+    prefer-ip-address: true
 
 management:
   endpoints:
@@ -54,8 +55,10 @@ management:
       show-details: always
 
 springdoc:
-  api-docs.path: /v3/api-docs
-  swagger-ui.path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
 
 logging:
   pattern:

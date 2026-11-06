@@ -17,12 +17,17 @@
 .DS_Store
 Thumbs.db
 
-# Local Spring profiles
+# Local Spring profiles & Secrets
 **/application-local.yml
+**/application-local.yaml
 **/application-local.properties
 .env
 .env.*
 !.env.example
+
+# Local Media / File Uploads
+uploads/
+**/uploads/
 
 # Logs
 logs/
