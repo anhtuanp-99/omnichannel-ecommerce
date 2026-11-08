@@ -20,11 +20,21 @@ public class AddressController {
         this.service = service;
     }
 
+    /** API: Lấy danh sách địa chỉ của user */
     @GetMapping
     public ApiResponse<List<AddressResponse>> list(@CurrentUser UUID userId) {
         return ApiResponse.success(service.list(userId));
     }
 
+    /** API: Xem chi tiết một địa chỉ (Dùng nội bộ cho Feign) */
+    @GetMapping("/{id}")
+    public ApiResponse<AddressResponse> get(
+            @CurrentUser UUID userId,
+            @PathVariable UUID id) {
+        return ApiResponse.success(service.getOwned(userId, id));
+    }
+
+    /** API: Thêm mới địa chỉ */
     @PostMapping
     public ApiResponse<AddressResponse> create(
             @CurrentUser UUID userId,
@@ -32,6 +42,7 @@ public class AddressController {
         return ApiResponse.success(service.create(userId, req));
     }
 
+    /** API: Cập nhật địa chỉ */
     @PutMapping("/{id}")
     public ApiResponse<AddressResponse> update(
             @CurrentUser UUID userId,
@@ -40,6 +51,7 @@ public class AddressController {
         return ApiResponse.success(service.update(userId, id, req));
     }
 
+    /** API: Xóa địa chỉ */
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(
             @CurrentUser UUID userId,
