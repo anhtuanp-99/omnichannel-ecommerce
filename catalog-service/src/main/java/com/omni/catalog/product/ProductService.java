@@ -1,7 +1,8 @@
 package com.omni.catalog.product;
 
-import com.omni.catalog.category.CategoryRepository;
 import com.omni.catalog.brand.BrandRepository;
+import com.omni.catalog.category.CategoryRepository;
+import com.omni.catalog.product.dto.SkuLookupResponse;
 import com.omni.catalog.product.dto.*;
 import com.omni.catalog.search.ProductIndexer;
 import com.omni.common.error.BusinessException;
@@ -33,6 +34,7 @@ public class ProductService {
         this.indexer = indexer;
     }
 
+    /** Lấy chi tiết sản phẩm theo ID (có cache) */
     @Cacheable(value = "product", key = "#id")
     public ProductResponse getById(String id) {
         Product p = productRepo.findById(id)
@@ -40,6 +42,29 @@ public class ProductService {
         return toResp(p);
     }
 
+    /** Tìm thông tin chi tiết SKU phục vụ Feign call từ Order-service */
+    public SkuLookupResponse getSkuById(String skuId) {
+        Product product = productRepo.findBySkuId(skuId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy SKU: " + skuId));
+
+        Sku sku = product.getSkus().stream()
+                .filter(s -> skuId.equals(s.getId()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "SKU không tồn tại"));
+
+        return new SkuLookupResponse(
+                sku.getId(),
+                sku.getCode(),
+                product.getName(),
+                product.getStatus(),
+                sku.getAttributes(),
+                sku.getPrice(),
+                sku.getCurrency(),
+                sku.getStatus()
+        );
+    }
+
+    /** Tạo mới sản phẩm và đồng bộ sang ES */
     public ProductResponse create(ProductRequest req) {
         validateRefs(req);
         Product p = new Product();
@@ -47,10 +72,11 @@ public class ProductService {
         p.setCreatedAt(Instant.now());
         p.setUpdatedAt(p.getCreatedAt());
         Product saved = productRepo.save(p);
-        safeIndex(saved);   // dual write — Mongo đã save, ES fail không rollback
+        safeIndex(saved);
         return toResp(saved);
     }
 
+    /** Cập nhật sản phẩm, xóa cache cũ và đồng bộ lại ES */
     @CacheEvict(value = "product", key = "#id")
     public ProductResponse update(String id, ProductRequest req) {
         Product p = productRepo.findById(id)
@@ -63,6 +89,7 @@ public class ProductService {
         return toResp(saved);
     }
 
+    /** Xóa sản phẩm khỏi DB, Cache và ES */
     @CacheEvict(value = "product", key = "#id")
     public void delete(String id) {
         Product p = productRepo.findById(id)
@@ -71,10 +98,7 @@ public class ProductService {
         indexer.deleteById(id);
     }
 
-    /**
-     * Dual write: Mongo đã save → cố index ES. Nếu ES down → log + KHÔNG rollback.
-     * Sẽ dùng reindex endpoint để rebuild sau.
-     */
+    /** Dual write: Mongo đã save → cố index ES. Nếu ES down → log + KHÔNG rollback. */
     private void safeIndex(Product p) {
         try {
             indexer.index(p);
@@ -83,6 +107,7 @@ public class ProductService {
         }
     }
 
+    /** Validate các ràng buộc danh mục, thương hiệu và trùng lặp SKU */
     private void validateRefs(ProductRequest req) {
         if (!categoryRepo.existsById(req.categoryId())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Category không tồn tại");
@@ -90,7 +115,7 @@ public class ProductService {
         if (!brandRepo.existsById(req.brandId())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Brand không tồn tại");
         }
-        // Check trùng sku code trong request
+
         Set<String> codes = new HashSet<>();
         for (var s : req.skus()) {
             if (!codes.add(s.code())) {
@@ -99,6 +124,7 @@ public class ProductService {
         }
     }
 
+    /** Copy dữ liệu từ Request DTO sang Entity */
     private void apply(Product p, ProductRequest req) {
         p.setName(req.name());
         p.setDescription(req.description());
@@ -112,7 +138,6 @@ public class ProductService {
                   .map(i -> new Product.Image(i.url(), i.isPrimary()))
                   .toList());
 
-        // SKU: giữ id cũ nếu có, sinh UUID nếu chưa
         List<Sku> skus = new ArrayList<>();
         for (var s : req.skus()) {
             Sku sku = new Sku();
@@ -127,6 +152,7 @@ public class ProductService {
         p.setSkus(skus);
     }
 
+    /** Map Entity sang Response DTO */
     private ProductResponse toResp(Product p) {
         return new ProductResponse(
                 p.getId(), p.getName(), p.getDescription(),
