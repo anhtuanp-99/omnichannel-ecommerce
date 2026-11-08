@@ -2,6 +2,9 @@ package com.omni.identity.auth;
 
 import com.omni.common.error.BusinessException;
 import com.omni.common.error.ErrorCode;
+import com.omni.identity.address.Address;
+import com.omni.identity.address.AddressRepository;
+import com.omni.identity.address.dto.AddressResponse;
 import com.omni.identity.audit.AuditService;
 import com.omni.identity.auth.dto.*;
 import com.omni.identity.user.*;
@@ -29,6 +32,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AuditService auditService;
+    private final AddressRepository addressRepo;
 
     private final long verifyTtlSeconds;
     private final long resetTtlSeconds;
@@ -40,7 +44,7 @@ public class AuthService {
                        VerificationTokenRepository verificationRepo,
                        RefreshTokenService refreshTokenService, JwtService jwtService,
                        PasswordEncoder passwordEncoder, EmailService emailService,
-                       AuditService auditService,
+                       AuditService auditService, AddressRepository addressRepo,
                        @Value("${app.security.verify-ttl-seconds:86400}") long verifyTtlSeconds,
                        @Value("${app.security.reset-ttl-seconds:3600}") long resetTtlSeconds,
                        @Value("${app.security.max-failed-attempts:5}") int maxFailedAttempts,
@@ -53,6 +57,7 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.auditService = auditService;
+        this.addressRepo = addressRepo;
         this.verifyTtlSeconds = verifyTtlSeconds;
         this.resetTtlSeconds = resetTtlSeconds;
         this.maxFailedAttempts = maxFailedAttempts;
@@ -188,6 +193,25 @@ public class AuthService {
 
         refreshTokenService.revokeAllForUser(user.getId());
         auditService.log(user.getId(), "AUTH_RESET_PASSWORD", "User", user.getId().toString(), null, "SUCCESS");
+    }
+
+    /** Lấy địa chỉ thuộc sở hữu của user để Feign gọi verify lúc tạo đơn. */
+    @Transactional(readOnly = true)
+    public AddressResponse getOwned(UUID userId, UUID id) {
+        Address a = addressRepo.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Địa chỉ không tồn tại hoặc không thuộc sở hữu"));
+
+        // Map đúng 8 tham số theo record AddressResponse của bạn
+        return new AddressResponse(
+                a.getId().toString(), // Chuyển UUID sang String
+                a.getRecipient(),
+                a.getPhone(),
+                a.getProvince(),
+                a.getDistrict(),
+                a.getWard(),
+                a.getDetail(),
+                a.isDefault()
+        );
     }
 
     private void handleFailedLogin(User user) {
