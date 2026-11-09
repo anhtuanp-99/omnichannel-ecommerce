@@ -5,6 +5,68 @@ spring:
   application:
     name: order-inventory-service
 
+  profiles:
+    # Mặc định kích hoạt profile local nếu không truyền biến SPRING_PROFILES_ACTIVE
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  datasource:
+    # Mặc định cổng 5433 khớp với omni-postgres đang map ra ngoài máy host
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:order_db}?currentSchema=public
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:CHANGE_ME_IN_LOCAL_OR_ENV}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:29092}
+    consumer:
+      group-id: order-inventory
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+    producer:
+      acks: all
+      retries: 3
+
+app:
+  jwt:
+    # Secret key tối thiểu 256 bits (32 bytes)
+    secret: ${JWT_SECRET:REPLACE_WITH_HS256_SECRET_KEY_MIN_32_CHARS_LONG}
+  inventory:
+    reservation:
+      ttl-minutes: 15
+  outbox:
+    publisher:
+      batch-size: 100
+      interval-ms: 2000
+  idempotency:
+    ttl-hours: 24
+
 eureka:
   client:
     service-url:
@@ -32,3 +94,4 @@ logging:
     console: "%d{ISO8601} [%X{correlationId:-}] %-5level %logger{36} - %msg%n"
   level:
     com.omni.orderinventory: DEBUG
+    org.hibernate.SQL: INFO

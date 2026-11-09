@@ -54,6 +54,22 @@ spring:
           filters:
             - RewritePath=/api/v1/notification/health, /actuator/health
 
+        # ===== Order & Inventory Service routes =====
+        - id: order-inventory-cart
+          uri: lb://order-inventory-service
+          predicates:
+            - Path=/api/v1/cart/**
+
+        - id: order-inventory-orders
+          uri: lb://order-inventory-service
+          predicates:
+            - Path=/api/v1/orders/**
+
+        - id: order-inventory-admin-stock
+          uri: lb://order-inventory-service
+          predicates:
+            - Path=/api/v1/admin/stock/**
+
 eureka:
   client:
     service-url:
