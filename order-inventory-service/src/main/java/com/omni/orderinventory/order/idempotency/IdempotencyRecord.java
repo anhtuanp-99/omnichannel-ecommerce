@@ -8,7 +8,6 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
-import java.util.Map;
 
 @Entity
 @Table(name = "idempotency_keys")
@@ -22,9 +21,10 @@ public class IdempotencyRecord {
     @Column(name = "request_hash", nullable = false, length = 64)
     private String requestHash;
 
+    // Lưu trực tiếp chuỗi JSON dưới dạng String để tránh lỗi Jackson hiểu nhầm cấu trúc List/Object
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "response_json", columnDefinition = "jsonb")
-    private Map<String, Object> responseJson;
+    private String responseJson;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
