@@ -70,6 +70,22 @@ spring:
           predicates:
             - Path=/api/v1/admin/stock/**
 
+        # ===== Payment Service routes =====
+        - id: payment-service-customer
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/v1/payments/**
+
+        - id: payment-service-admin
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/v1/admin/payments/**
+
+        - id: payment-service-mock-provider
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/v1/mock-provider/**
+
 eureka:
   client:
     service-url:
