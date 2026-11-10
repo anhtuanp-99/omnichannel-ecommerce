@@ -11,10 +11,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
-import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +36,10 @@ public class KafkaConfig {
         cfg.put(ProducerConfig.ACKS_CONFIG, "all");
         cfg.put(ProducerConfig.RETRIES_CONFIG, 3);
         cfg.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+
+        // BEST PRACTICE: Tắt header TypeId để tránh lỗi Deserialization với Generic
+        cfg.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+
         return new DefaultKafkaProducerFactory<>(cfg, new StringSerializer(), new JsonSerializer<>(om));
     }
 
@@ -46,32 +49,31 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ConsumerFactory<String, Object> consumerFactory() {
-        // ObjectMapper cho JsonDeserializer — hỗ trợ Instant
-        ObjectMapper om = new ObjectMapper().registerModule(new JavaTimeModule());
-
-        JsonDeserializer<Object> deser = new JsonDeserializer<>(om);
-        deser.addTrustedPackages("com.omni.common.event", "java.util", "java.time");
-
+    public ConsumerFactory<String, String> consumerFactory() {
         Map<String, Object> cfg = new HashMap<>();
         cfg.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         cfg.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         cfg.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         cfg.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         cfg.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        cfg.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
 
-        return new DefaultKafkaConsumerFactory<>(cfg, new StringDeserializer(), deser);
+        // BEST PRACTICE: Dùng StringDeserializer, Consumer sẽ tự parse JSON bằng ObjectMapper
+        cfg.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+        return new DefaultKafkaConsumerFactory<>(cfg, new StringDeserializer(), new StringDeserializer());
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            ConsumerFactory<String, Object> cf) {
-        var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
+            ConsumerFactory<String, String> cf,
+            DefaultErrorHandler errorHandler) {
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
         factory.setConsumerFactory(cf);
-        // Retry 3 lần với 1s interval → fail → DLT (nếu có) hoặc log
-        // DLT sẽ wire ở Chat C khi có consumer thực tế
-        factory.setCommonErrorHandler(new DefaultErrorHandler(new FixedBackOff(1000L, 3)));
+
+        // BEST PRACTICE: Thiết lập Ack Mode thủ công để kiểm soát việc commit offset
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+
+        factory.setCommonErrorHandler(errorHandler);
         return factory;
     }
 }
