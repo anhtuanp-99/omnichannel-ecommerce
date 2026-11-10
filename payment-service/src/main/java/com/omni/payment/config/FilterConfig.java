@@ -4,16 +4,15 @@ import com.omni.common.web.CorrelationIdFilter;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 
-/** Đăng ký common-web filter với servlet container. */
 @Configuration
 public class FilterConfig {
 
     @Bean
     public FilterRegistrationBean<CorrelationIdFilter> correlationIdFilter() {
-        var reg = new FilterRegistrationBean<>(new CorrelationIdFilter());
-        reg.setOrder(1);
-        reg.addUrlPatterns("/*");
-        return reg;
+        var registration = new FilterRegistrationBean<>(new CorrelationIdFilter());
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return registration;
     }
 }
