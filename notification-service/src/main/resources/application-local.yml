@@ -1,0 +1,24 @@
+server:
+  port: 8085
+
+spring:
+  data:
+    mongodb:
+      # Trỏ đúng cổng host 27018 của container omni-mongodb
+      uri: mongodb://localhost:27018/notification_db
+  kafka:
+    bootstrap-servers: localhost:29092
+  mail:
+    host: localhost
+    port: 1025
+
+eureka:
+  client:
+    enabled: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+    registry-fetch-interval-seconds: 5
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
