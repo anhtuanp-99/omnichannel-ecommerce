@@ -22,21 +22,20 @@ public class SecurityConfig {
         this.entryPoint = entryPoint;
     }
 
-    /** Argon2id — NFR-SEC-002. */
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // saltLength=16, hashLength=32, parallelism=1, memoryKb=65536 (64MB), iterations=3
         return Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())   // API stateless, JWT trong header
+                .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/v1/auth/**",
+                                "/api/v1/internal/**",
                                 "/actuator/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**", "/swagger-ui.html"
