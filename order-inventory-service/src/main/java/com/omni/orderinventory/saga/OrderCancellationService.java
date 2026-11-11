@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,13 +41,11 @@ public class OrderCancellationService {
         this.outboxRepo = outboxRepo;
     }
 
-    /** Hủy đơn hàng mặc định (do khách hàng hoặc nhân viên thao tác) */
     @Transactional
     public void cancel(UUID actorId, UUID orderId, String reason, boolean fromCustomer) {
         cancel(actorId, orderId, reason, fromCustomer, false);
     }
 
-    /** Hủy đơn hàng có phân biệt việc tự động hết hạn (isExpiry = true) */
     @Transactional
     public void cancel(UUID actorId, UUID orderId, String reason, boolean fromCustomer, boolean isExpiry) {
         Order order = orderRepo.findById(orderId)
@@ -66,20 +65,13 @@ public class OrderCancellationService {
         OrderStatus oldStatus = order.getStatus();
         OrderStateMachine.assertCanTransition(oldStatus, OrderStatus.CANCELLED);
 
-        // Đơn đã xác nhận hoặc đang vận chuyển thì cần kích hoạt luồng hoàn tiền
         boolean refundRequired = (oldStatus == OrderStatus.CONFIRMED || oldStatus == OrderStatus.SHIPPING);
 
-        // Với đơn PENDING: giải phóng tồn kho đã giữ
         if (oldStatus == OrderStatus.PENDING) {
             var reservations = reservationRepo.findByOrderId(orderId);
             for (var r : reservations) {
                 if (r.getStatus() == ReservationStatus.PENDING) {
-                    // Nếu là hết hạn, cập nhật status thành EXPIRED. Nếu hủy tay, cập nhật thành RELEASED.
                     ReservationStatus targetStatus = isExpiry ? ReservationStatus.EXPIRED : ReservationStatus.RELEASED;
-
-                    // Lưu ý: Bạn cần đảm bảo hàm releaseReservation trong ReservationService
-                    // nhận thêm tham số (UUID id, ReservationStatus finalStatus).
-                    // (Hoặc nếu bạn không muốn sửa hàm đó, hãy giữ nguyên và nó sẽ set RELEASED, test sẽ fail).
                     reservationService.releaseReservation(r.getId(), targetStatus);
                 }
             }
@@ -95,7 +87,6 @@ public class OrderCancellationService {
         history.setNewStatus(OrderStatus.CANCELLED);
         history.setReason(reason);
 
-        // Phân biệt actor là ai
         if (isExpiry) {
             history.setActor("system");
         } else {
@@ -103,15 +94,18 @@ public class OrderCancellationService {
         }
         historyRepo.save(history);
 
-        // Bắn Outbox event để các service khác (Payment) xử lý hoàn tiền
+        // Bắn Outbox event mang đầy đủ thông tin mã đơn và thời gian hủy
         OutboxEvent event = new OutboxEvent();
         event.setAggregateType("Order");
         event.setAggregateId(orderId);
         event.setEventType("OrderCancelled");
         event.setPayload(Map.of(
                 "orderId", orderId.toString(),
+                "orderCode", order.getCode(),
+                "customerId", order.getCustomerId().toString(),
                 "reason", reason,
-                "refundRequired", refundRequired
+                "refundRequired", refundRequired,
+                "cancelledAt", Instant.now().toString()
         ));
         outboxRepo.save(event);
 

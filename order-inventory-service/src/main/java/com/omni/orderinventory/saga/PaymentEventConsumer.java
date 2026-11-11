@@ -26,9 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Consumer xử lý sự kiện kết quả thanh toán từ Payment service (Saga Pattern).
- */
+/** Consumer xử lý sự kiện kết quả thanh toán từ Payment service (Saga Pattern). */
 @Component
 public class PaymentEventConsumer {
 
@@ -66,7 +64,6 @@ public class PaymentEventConsumer {
     @Transactional
     public void onPaymentEvent(String message, Acknowledgment ack) {
         try {
-            // BEST PRACTICE: Tự parse JSON String thành Object để kiểm soát hoàn toàn
             EventEnvelope<?> envelope = om.readValue(message, new TypeReference<EventEnvelope<?>>() {});
             UUID eventId = UUID.fromString(envelope.eventId());
 
@@ -88,7 +85,6 @@ public class PaymentEventConsumer {
                 }
             }
         } catch (Exception e) {
-            // Ném lỗi ra ngoài để DefaultErrorHandler retry/DLT
             log.error("Lỗi khi xử lý payment event: {}", e.getMessage(), e);
             throw new RuntimeException("Lỗi xử lý message Kafka", e);
         }
@@ -101,7 +97,6 @@ public class PaymentEventConsumer {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new IllegalStateException("Không tìm thấy orderId: " + orderId));
 
-        // Đơn đã bị hủy (ví dụ do quá hạn) nhưng tiền vẫn bị trừ -> Cần hoàn tiền
         if (order.getStatus() == OrderStatus.CANCELLED) {
             log.warn("PaymentSucceeded cho đơn đã CANCELLED id={} -> yêu cầu refund", orderId);
             emitCancelledWithRefund(orderId, "Thanh toán thành công sau khi đơn đã bị hủy do quá hạn");
@@ -109,14 +104,12 @@ public class PaymentEventConsumer {
             return;
         }
 
-        // Nếu đơn không ở trạng thái PENDING (đã xử lý) -> Bỏ qua
         if (order.getStatus() != OrderStatus.PENDING) {
             log.info("Order={} đang ở status={}, bỏ qua commit", orderId, order.getStatus());
             ack.acknowledge();
             return;
         }
 
-        // Chuyển toàn bộ kho giữ sang COMMITTED
         List<StockReservation> reservations = reservationRepo.findByOrderId(orderId);
         for (var r : reservations) {
             if (r.getStatus() == ReservationStatus.PENDING) {
@@ -129,13 +122,11 @@ public class PaymentEventConsumer {
             }
         }
 
-        // Cập nhật trạng thái Đơn hàng
         OrderStatus oldStatus = order.getStatus();
         OrderStateMachine.assertCanTransition(oldStatus, OrderStatus.CONFIRMED);
         order.setStatus(OrderStatus.CONFIRMED);
         orderRepo.save(order);
 
-        // Ghi log lịch sử
         OrderStatusHistory history = new OrderStatusHistory();
         history.setOrderId(orderId);
         history.setOldStatus(oldStatus);
@@ -144,9 +135,13 @@ public class PaymentEventConsumer {
         history.setActor("system");
         historyRepo.save(history);
 
-        // Bắn event Outbox
+        // Bắn event Outbox OrderConfirmed với đầy đủ thông tin cho Notification
         emitEvent(orderId, "OrderConfirmed", Map.of(
                 "orderId", orderId.toString(),
+                "orderCode", order.getCode(),
+                "customerId", order.getCustomerId().toString(),
+                "totalAmount", order.getTotalAmount(),
+                "currency", order.getCurrency(),
                 "confirmedAt", Instant.now().toString()
         ));
 
@@ -164,14 +159,12 @@ public class PaymentEventConsumer {
             return;
         }
 
-        // Giải phóng lượng tồn kho đã giữ
         for (var r : reservationRepo.findByOrderId(orderId)) {
             if (r.getStatus() == ReservationStatus.PENDING) {
-                reservationService.releaseReservation(r.getId());
+                reservationService.releaseReservation(r.getId(), ReservationStatus.RELEASED);
             }
         }
 
-        // Cập nhật trạng thái Đơn hàng
         order.setStatus(OrderStatus.CANCELLED);
         order.setCancelReason("Payment failed: " + payload.failureCategory());
         orderRepo.save(order);
@@ -184,10 +177,14 @@ public class PaymentEventConsumer {
         history.setActor("system");
         historyRepo.save(history);
 
+        // Bắn event Outbox OrderCancelled với đầy đủ thông tin cho Notification
         emitEvent(orderId, "OrderCancelled", Map.of(
                 "orderId", orderId.toString(),
+                "orderCode", order.getCode(),
+                "customerId", order.getCustomerId().toString(),
                 "reason", "payment failed: " + payload.failureCategory(),
-                "refundRequired", false
+                "refundRequired", false,
+                "cancelledAt", Instant.now().toString()
         ));
 
         log.info("Order={} đã CANCELLED do thanh toán thất bại", orderId);
@@ -195,17 +192,22 @@ public class PaymentEventConsumer {
     }
 
     private void emitCancelledWithRefund(UUID orderId, String reason) {
-        orderRepo.findById(orderId).ifPresent(o -> {
-            if (o.getStatus() != OrderStatus.CANCELLED) {
-                o.setStatus(OrderStatus.CANCELLED);
-                o.setCancelReason(reason);
-                orderRepo.save(o);
-            }
-        });
+        Order order = orderRepo.findById(orderId).orElse(null);
+        if (order == null) return;
+
+        if (order.getStatus() != OrderStatus.CANCELLED) {
+            order.setStatus(OrderStatus.CANCELLED);
+            order.setCancelReason(reason);
+            orderRepo.save(order);
+        }
+
         emitEvent(orderId, "OrderCancelled", Map.of(
                 "orderId", orderId.toString(),
+                "orderCode", order.getCode(),
+                "customerId", order.getCustomerId().toString(),
                 "reason", reason,
-                "refundRequired", true
+                "refundRequired", true,
+                "cancelledAt", Instant.now().toString()
         ));
     }
 
