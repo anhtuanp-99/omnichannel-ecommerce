@@ -18,69 +18,65 @@ spring:
           enabled: false
 
       routes:
-        # ===== Health check routes =====
-        - id: identity-health
+        # ===== Identity Service Routes =====
+        - id: identity-auth
           uri: lb://identity-service
           predicates:
-            - Path=/api/v1/identity/health
-          filters:
-            - RewritePath=/api/v1/identity/health, /actuator/health
+            - Path=/api/v1/auth/**
+        - id: identity-users
+          uri: lb://identity-service
+          predicates:
+            - Path=/api/v1/users/**
+        - id: identity-addresses
+          uri: lb://identity-service
+          predicates:
+            - Path=/api/v1/addresses/**
+        - id: identity-admin
+          uri: lb://identity-service
+          predicates:
+            - Path=/api/v1/admin/roles/**
 
-        - id: catalog-health
+        # ===== Catalog Service Routes =====
+        - id: catalog-products
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/catalog/health
-          filters:
-            - RewritePath=/api/v1/catalog/health, /actuator/health
-
-        - id: order-health
-          uri: lb://order-inventory-service
+            - Path=/api/v1/products/**
+        - id: catalog-categories
+          uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/order/health
-          filters:
-            - RewritePath=/api/v1/order/health, /actuator/health
-
-        - id: payment-health
-          uri: lb://payment-service
+            - Path=/api/v1/categories/**
+        - id: catalog-brands
+          uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/payment/health
-          filters:
-            - RewritePath=/api/v1/payment/health, /actuator/health
-
-        - id: notification-health
-          uri: lb://notification-service
+            - Path=/api/v1/brands/**
+        - id: catalog-images
+          uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/notification/health
-          filters:
-            - RewritePath=/api/v1/notification/health, /actuator/health
+            - Path=/api/v1/images/**
 
-        # ===== Order & Inventory Service routes =====
+        # ===== Order & Inventory Service Routes =====
         - id: order-inventory-cart
           uri: lb://order-inventory-service
           predicates:
             - Path=/api/v1/cart/**
-
         - id: order-inventory-orders
           uri: lb://order-inventory-service
           predicates:
             - Path=/api/v1/orders/**
-
         - id: order-inventory-admin-stock
           uri: lb://order-inventory-service
           predicates:
             - Path=/api/v1/admin/stock/**
 
-        # ===== Payment Service routes =====
+        # ===== Payment Service Routes =====
         - id: payment-service-customer
           uri: lb://payment-service
           predicates:
             - Path=/api/v1/payments/**
-
         - id: payment-service-admin
           uri: lb://payment-service
           predicates:
             - Path=/api/v1/admin/payments/**
-
         - id: payment-service-mock-provider
           uri: lb://payment-service
           predicates:
@@ -88,9 +84,10 @@ spring:
 
 eureka:
   client:
+    enabled: true
     service-url:
       defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
-    registry-fetch-interval-seconds: 3
+    registry-fetch-interval-seconds: 5
   instance:
     prefer-ip-address: true
 

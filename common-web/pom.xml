@@ -15,30 +15,31 @@
     <name>common-web</name>
 
     <dependencies>
+        <!-- Internal Common -->
         <dependency>
             <groupId>com.omni</groupId>
             <artifactId>common</artifactId>
         </dependency>
 
-        <!-- Thư viện Logging API cho org.slf4j.MDC, Logger, LoggerFactory -->
+        <!-- Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-        <!-- Cung cấp EnvironmentPostProcessor (không kéo embedded Tomcat) -->
+        <!-- Spring Boot Core (chỉ dùng cho EnvironmentPostProcessor, không kéo Tomcat) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot</artifactId>
         </dependency>
 
-        <!-- Đọc file .env khi chạy local (version 3.0.0 kế thừa từ root pom) -->
+        <!-- Đọc file .env khi chạy local -->
         <dependency>
             <groupId>io.github.cdimascio</groupId>
             <artifactId>dotenv-java</artifactId>
         </dependency>
 
-        <!-- Chỉ servlet, không starter-web để không kéo Tomcat vào library -->
+        <!-- Spring WebMVC & Servlet API (dùng để viết GlobalExceptionHandler, Filter) -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
@@ -47,6 +48,13 @@
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- Swagger Annotations: Bắt buộc phải có để dùng @Hidden trong GlobalExceptionHandler -->
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations-jakarta</artifactId>
+            <version>2.2.29</version> <!-- Khớp với phiên bản springdoc 2.8.6 ở root pom -->
         </dependency>
     </dependencies>
 </project>
