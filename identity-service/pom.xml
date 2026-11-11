@@ -13,6 +13,19 @@
     <artifactId>identity-service</artifactId>
     <name>identity-service</name>
 
+    <!-- Ép Testcontainers lên bản 1.21.4 để tương thích với Docker Engine mới (tránh lỗi API 1.32) -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>1.21.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>com.omni</groupId>
