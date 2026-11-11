@@ -1,0 +1,32 @@
+spring:
+  jpa:
+    hibernate.ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+app:
+  jwt:
+    secret: test-secret-key-must-be-at-least-32-bytes-long-ok
+  provider:
+    mock:
+      hmac-secret: test-mock-hmac-secret-must-be-at-least-32-bytes-ok
+      base-url: http://localhost:8084
+      webhook-url: http://localhost:8084/api/v1/payments/webhook
+  outbox:
+    publisher:
+      interval-ms: 100000 # Giảm tần suất quét outbox khi chạy test đơn vị
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+logging:
+  level:
+    org.apache.kafka: WARN
