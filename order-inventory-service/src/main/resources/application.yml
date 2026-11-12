@@ -6,11 +6,9 @@ spring:
     name: order-inventory-service
 
   profiles:
-    # Mặc định kích hoạt profile local nếu không truyền biến SPRING_PROFILES_ACTIVE
     active: ${SPRING_PROFILES_ACTIVE:local}
 
   datasource:
-    # Mặc định cổng 5433 khớp với omni-postgres đang map ra ngoài máy host
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:order_db}?currentSchema=public
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:CHANGE_ME_IN_LOCAL_OR_ENV}
@@ -53,9 +51,19 @@ spring:
       acks: all
       retries: 3
 
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          default:
+            connectTimeout: 2000
+            readTimeout: 3000
+            loggerLevel: basic
+
 app:
   jwt:
-    # Secret key tối thiểu 256 bits (32 bytes)
     secret: ${JWT_SECRET:REPLACE_WITH_HS256_SECRET_KEY_MIN_32_CHARS_LONG}
   inventory:
     reservation:
@@ -66,6 +74,41 @@ app:
       interval-ms: 2000
   idempotency:
     ttl-hours: 24
+
+# ===== Resilience4j Configuration =====
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+        ignoreExceptions:
+          - com.omni.common.error.BusinessException
+    instances:
+      catalogClient:
+        baseConfig: default
+      identityClient:
+        baseConfig: default
+
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 3s
+        cancelRunningFuture: true
+
+  retry:
+    configs:
+      default:
+        maxAttempts: 2
+        waitDuration: 500ms
+        retryExceptions:
+          - java.io.IOException
+          - feign.RetryableException
+        ignoreExceptions:
+          - com.omni.common.error.BusinessException
 
 eureka:
   client:
@@ -78,10 +121,16 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,circuitbreakers
   endpoint:
     health:
       show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL:http://localhost:9411/api/v2/spans}
 
 springdoc:
   api-docs:
@@ -91,7 +140,7 @@ springdoc:
 
 logging:
   pattern:
-    console: "%d{ISO8601} [%X{correlationId:-}] %-5level %logger{36} - %msg%n"
+    console: "%d{ISO8601} [%X{correlationId:-}] [%X{traceId:-},%X{spanId:-}] %-5level %logger{36} - %msg%n"
   level:
     com.omni.orderinventory: DEBUG
     org.hibernate.SQL: INFO
