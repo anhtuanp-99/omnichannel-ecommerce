@@ -40,19 +40,22 @@ spring:
         - id: catalog-products
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/products/**
+            - Path=/api/v1/catalog/products/**
+
         - id: catalog-categories
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/categories/**
+            - Path=/api/v1/catalog/categories/**
+
         - id: catalog-brands
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/brands/**
+            - Path=/api/v1/catalog/brands/**
+
         - id: catalog-images
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/images/**
+            - Path=/api/v1/catalog/images/**
 
         # ===== Order & Inventory Service Routes =====
         - id: order-inventory-cart
