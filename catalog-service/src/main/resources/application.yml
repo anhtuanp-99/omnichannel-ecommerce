@@ -9,7 +9,7 @@ spring:
 
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb://localhost:27018/catalog_db}
+      uri: ${MONGO_URI:mongodb://localhost:27017/catalog_db}
       auto-index-creation: true
     redis:
       host: ${REDIS_HOST:localhost}
@@ -53,6 +53,12 @@ management:
   endpoint:
     health:
       show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL:http://localhost:9411/api/v2/spans}
 
 springdoc:
   api-docs:
@@ -62,7 +68,7 @@ springdoc:
 
 logging:
   pattern:
-    console: "%d{ISO8601} [%X{correlationId:-}] %-5level %logger{36} - %msg%n"
+    console: "%d{ISO8601} [%X{correlationId:-}] [%X{traceId:-},%X{spanId:-}] %-5level %logger{36} - %msg%n"
   level:
     com.omni.catalog: DEBUG
     org.springframework.data.elasticsearch.client: INFO

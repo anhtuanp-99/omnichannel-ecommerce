@@ -13,7 +13,6 @@
     <artifactId>catalog-service</artifactId>
     <name>catalog-service</name>
 
-    <!-- Ép Testcontainers lên bản 1.21.4 để tương thích với Docker Engine mới (tránh lỗi API 1.32) -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -74,6 +73,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
+        <!-- Distributed Tracing (Brave + Zipkin) -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.zipkin.reporter2</groupId>
+            <artifactId>zipkin-reporter-brave</artifactId>
         </dependency>
 
         <!-- Security (Parse JWT) -->
