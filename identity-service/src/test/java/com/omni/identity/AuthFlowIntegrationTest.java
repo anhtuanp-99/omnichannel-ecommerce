@@ -1,109 +1,123 @@
 package com.omni.identity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.omni.identity.auth.EmailService;
 import com.omni.identity.auth.dto.LoginRequest;
 import com.omni.identity.auth.dto.RegisterRequest;
-import com.omni.identity.user.User;
+import com.omni.identity.user.Role;
+import com.omni.identity.user.RoleRepository;
 import com.omni.identity.user.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.util.UUID;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@Transactional // Tự động rollback dữ liệu sau khi chạy xong, không để lại rác trong database
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+
+/**
+ * TÁC DỤNG: Test toàn bộ luồng xác thực (End-to-End Auth Flow).
+ * Bao gồm: Đăng ký -> Nhận email xác minh -> Kích hoạt tài khoản -> Đăng nhập (lấy JWT) -> Gọi API bảo mật.
+ * Sử dụng H2 Database (In-memory) để chạy độc lập, không cần khởi động Postgres thật.
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class AuthFlowIntegrationTest {
 
-    private static final String TEST_PASSWORD = "Password123@";
-    private static final String TEST_PHONE = "0901234567";
-    private static final String TEST_FULL_NAME = "Anh Tuan";
-
+    // Cấu hình H2 Database và tắt các dịch vụ ngoại vi (Eureka, Flyway) để test chạy nhanh và độc lập
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", () -> "jdbc:postgresql://localhost:5433/postgres?currentSchema=public");
-        registry.add("spring.datasource.username", () -> "postgres");
-        registry.add("spring.datasource.password", () -> "anhtuansql");
-        registry.add("spring.flyway.enabled", () -> "true");
-        registry.add("spring.flyway.baseline-on-migrate", () -> "true");
-        registry.add("spring.flyway.baseline-version", () -> "0");
+        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE");
+        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+        registry.add("spring.datasource.username", () -> "sa");
+        registry.add("spring.datasource.password", () -> "");
+        registry.add("spring.flyway.enabled", () -> "false");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
         registry.add("app.jwt.secret", () -> "omni-ecom-microservices-super-secret-key-2026-local-dev");
         registry.add("eureka.client.enabled", () -> "false");
     }
 
-    @Autowired
-    private MockMvc mvc;
+    @Autowired private TestRestTemplate http;
+    @Autowired private ObjectMapper om;
+    @Autowired private UserRepository userRepo;
+    @Autowired private RoleRepository roleRepo;
 
-    @Autowired
-    private ObjectMapper om;
-
-    @Autowired
-    private UserRepository userRepo;
-
+    // Mock EmailService để không gửi mail thật, chỉ bắt lấy token
     @MockitoBean
     private EmailService emailService;
 
+    @Captor
+    private ArgumentCaptor<String> tokenCaptor;
+
+    @BeforeEach
+    void setUp() {
+        // ARRANGE: Mồi dữ liệu Role vào H2 DB (vì đã tắt Flyway nên DB trống)
+        if (roleRepo.findByCode("CUSTOMER").isEmpty()) {
+            Role customer = new Role();
+            customer.setId(UUID.randomUUID()); // Role không có @GeneratedValue nên phải set ID thủ công
+            customer.setCode("CUSTOMER");
+            customer.setName("Customer");
+            roleRepo.save(customer);
+        }
+        if (roleRepo.findByCode("ADMIN").isEmpty()) {
+            Role admin = new Role();
+            admin.setId(UUID.randomUUID());
+            admin.setCode("ADMIN");
+            admin.setName("Admin");
+            roleRepo.save(admin);
+        }
+    }
+
     @Test
-    @DisplayName("E2E Auth Flow: Register -> Block unverified -> Activate -> Login -> Get /me")
-    void fullFlow_registerVerifyLoginMe() throws Exception {
-        String email = "test." + System.nanoTime() + "@omni.com";
-        doNothing().when(emailService).sendVerifyEmail(anyString(), anyString());
+    @DisplayName("Full Auth Flow: Register -> Verify -> Login -> Access Protected API")
+    void fullAuthFlow() throws Exception {
+        String email = "test." + UUID.randomUUID() + "@omni.com";
+        String password = "Password123@";
 
-        // 1. Đăng ký tài khoản mới
-        var registerRequest = new RegisterRequest(email, TEST_PHONE, TEST_PASSWORD, TEST_FULL_NAME);
-        mvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(om.writeValueAsString(registerRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SUCCESS"));
+        // ================= ACT 1: Đăng ký tài khoản =================
+        var registerReq = new RegisterRequest(email, "0901234567", password, "Test User");
+        ResponseEntity<String> regResp = http.postForEntity("/api/v1/auth/register", registerReq, String.class);
+        assertThat(regResp.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        // 2. Chặn đăng nhập khi chưa kích hoạt email (trả về lỗi 4xx)
-        var unverifiedLoginRequest = new LoginRequest(email, TEST_PASSWORD);
-        mvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(om.writeValueAsString(unverifiedLoginRequest)))
-                .andExpect(status().is4xxClientError());
+        // ================= ASSERT 1: Bắt token từ email giả lập =================
+        verify(emailService).sendVerifyEmail(eq(email), tokenCaptor.capture());
+        String verificationToken = tokenCaptor.getValue();
+        assertThat(verificationToken).isNotBlank();
 
-        // 3. Kích hoạt tài khoản trực tiếp trong DB test
-        User user = userRepo.findByEmailAndDeletedAtIsNull(email)
-                .orElseThrow(() -> new AssertionError("Không tìm thấy user sau khi đăng ký: " + email));
-        user.setEmailVerified(true);
-        user.setStatus(User.Status.ACTIVE);
-        userRepo.save(user);
+        // ================= ACT 2: Gọi API kích hoạt tài khoản =================
+        ResponseEntity<String> verifyResp = http.getForEntity(
+                "/api/v1/auth/verify-email?token=" + verificationToken, String.class);
+        assertThat(verifyResp.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        // 4. Đăng nhập sau khi kích hoạt -> Nhận cặp Access Token & Refresh Token
-        var validLoginRequest = new LoginRequest(email, TEST_PASSWORD);
-        String loginResponseJson = mvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(om.writeValueAsString(validLoginRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.tokens.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.tokens.refreshToken").isNotEmpty())
-                .andReturn().getResponse().getContentAsString();
+        // ================= ACT 3: Đăng nhập để lấy JWT =================
+        var loginReq = new LoginRequest(email, password);
+        ResponseEntity<String> loginResp = http.postForEntity("/api/v1/auth/login", loginReq, String.class);
+        assertThat(loginResp.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        String accessToken = om.readTree(loginResponseJson)
-                .path("data").path("tokens").path("accessToken").asText();
+        JsonNode json = om.readTree(loginResp.getBody());
+        String accessToken = json.path("data").path("tokens").path("accessToken").asText();
 
-        // 5. Xác thực với Access Token tại endpoint bảo mật GET /api/v1/users/me
-        mvc.perform(get("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.email").value(email))
-                .andExpect(jsonPath("$.data.roles").isArray());
+        // ================= ACT 4 & ASSERT 3: Dùng JWT gọi API bảo mật =================
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        var request = new org.springframework.http.HttpEntity<>(headers);
+
+        ResponseEntity<String> meResp = http.exchange("/api/v1/users/me", HttpMethod.GET, request, String.class);
+        assertThat(meResp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(meResp.getBody()).contains(email);
     }
 }

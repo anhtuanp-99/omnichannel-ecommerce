@@ -104,7 +104,7 @@ public class AuthService {
         if (vt.isUsed()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Token đã được dùng");
         if (vt.getExpiresAt().isBefore(Instant.now())) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Token hết hạn");
 
-        User user = userRepo.findById(vt.getUserId()).orElseThrow();
+        User user = userRepo.findById(vt.getUserId()).orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "User không tồn tại"));
         user.setEmailVerified(true);
         user.setStatus(User.Status.ACTIVE);
         vt.setUsed(true);
@@ -187,7 +187,7 @@ public class AuthService {
         if (vt.isUsed()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Token đã dùng");
         if (vt.getExpiresAt().isBefore(Instant.now())) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Token hết hạn");
 
-        User user = userRepo.findById(vt.getUserId()).orElseThrow();
+        User user = userRepo.findById(vt.getUserId()).orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "User không tồn tại"));
         user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
         vt.setUsed(true);
 

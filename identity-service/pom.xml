@@ -4,6 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                              https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>com.omni</groupId>
         <artifactId>omni-ecom</artifactId>
@@ -13,7 +14,7 @@
     <artifactId>identity-service</artifactId>
     <name>identity-service</name>
 
-    <!-- Ép Testcontainers lên bản 1.21.4 để tương thích với Docker Engine mới (tránh lỗi API 1.32) -->
+    <!-- Quản lý phiên bản Testcontainers -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -27,12 +28,13 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- ==================== INTERNAL MODULES ==================== -->
         <dependency>
             <groupId>com.omni</groupId>
             <artifactId>common-web</artifactId>
         </dependency>
 
-        <!-- Web + Eureka + Actuator + OpenAPI -->
+        <!-- ==================== SPRING BOOT CORE & WEB ==================== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -50,7 +52,7 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
-        <!-- Persistence -->
+        <!-- ==================== PERSISTENCE (JPA + POSTGRES) ==================== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -73,7 +75,7 @@
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
-        <!-- Security + JWT -->
+        <!-- ==================== SECURITY & JWT ==================== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
@@ -102,7 +104,7 @@
             <version>1.78.1</version>
         </dependency>
 
-        <!-- Email -->
+        <!-- ==================== EMAIL & TEMPLATE ==================== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
@@ -112,7 +114,7 @@
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
-        <!-- Test -->
+        <!-- ==================== TESTING ==================== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -123,6 +125,15 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- H2 Database: BẮT BUỘC để chạy Integration Test giả lập (In-Memory) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testcontainers: Dùng khi muốn test thật với Docker -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
