@@ -1,8 +1,18 @@
+
+/**
+ * Controller quản trị cung cấp API kích hoạt tái lập chỉ mục Elasticsearch thủ công.
+ *
+ * Chỉ cho phép tài khoản có quyền ADMIN thực thi để đồng bộ lại
+ * dữ liệu tìm kiếm khi cần thiết.
+ */
+
 package com.omni.catalog.search;
 
-import com.omni.catalog.search.dto.SearchResponse;
+import com.omni.common.dto.ApiResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
@@ -11,31 +21,23 @@ import java.util.Map;
 public class ReindexController {
 
     private final ReindexService reindexService;
-    private final ProductSearchService searchService;
 
-    public ReindexController(ReindexService reindexService, ProductSearchService searchService) {
+    public ReindexController(ReindexService reindexService) {
         this.reindexService = reindexService;
-        this.searchService = searchService;
     }
 
+    /**
+     * Rebuild toàn bộ index Elasticsearch từ dữ liệu gốc MongoDB.
+     */
     @PostMapping("/admin/reindex")
     @PreAuthorize("hasRole('ADMIN')")
-    public Map<String, Object> reindex() {
-        long count = reindexService.reindexAll();
-        return Map.of("reindexed", count, "message", "ES index rebuilt");
-    }
+    public ApiResponse<Map<String, Long>> reindex() {
 
-    @GetMapping("/products/search")
-    public SearchResponse search(
-            @RequestParam(required = false) String q,
-            @RequestParam(required = false) String categoryId,
-            @RequestParam(required = false) String brandId,
-            @RequestParam(required = false) Long priceMin,
-            @RequestParam(required = false) Long priceMax,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "relevance") String sort) {
-        var query = new ProductSearchQuery(q, categoryId, brandId, priceMin, priceMax, page, size, sort);
-        return SearchResponse.from(searchService.search(query));
+        long count = reindexService.reindexAll();
+
+        return ApiResponse.success(
+                "Elasticsearch index rebuilt successfully",
+                Map.of("reindexed", count)
+        );
     }
 }

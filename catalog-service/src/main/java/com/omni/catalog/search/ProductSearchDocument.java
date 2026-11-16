@@ -1,21 +1,28 @@
+/**
+ * Mô hình ánh xạ dữ liệu sản phẩm lưu trữ trên Elasticsearch index 'products'.
+ * Sử dụng analyzer 'vi_folding' (định nghĩa trong es/product-settings.json) để hỗ trợ
+ * tìm kiếm tiếng Việt có dấu và không dấu.
+ */
 package com.omni.catalog.search;
 
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.*;
+import org.springframework.data.elasticsearch.annotations.Document;
+import org.springframework.data.elasticsearch.annotations.Field;
+import org.springframework.data.elasticsearch.annotations.FieldType;
+import org.springframework.data.elasticsearch.annotations.Setting;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-/**
- * ES document — flatten product + SKU để search.
- * Custom analyzer "vi_folding" (lowercase + asciifolding): search "ao thun" match "Áo Thun".
- */
+// Đặt createIndex = false để việc tạo index do ProductIndexer.ensureIndex() chủ động kiểm soát,
+// tránh lỗi crash lúc khởi động khi Elasticsearch chưa sẵn sàng.
 @Document(indexName = "products", createIndex = false)
 @Setting(settingPath = "es/product-settings.json")
-@Getter @Setter
+@Getter
+@Setter
 public class ProductSearchDocument {
 
     @Id
