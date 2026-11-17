@@ -7,14 +7,19 @@ package com.omni.catalog.search;
 import com.omni.catalog.product.ProductRepository;
 import com.omni.common.error.BusinessException;
 import com.omni.common.error.ErrorCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.IndexOperations;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ReindexService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReindexService.class);
 
     private final ElasticsearchOperations ops;
     private final ProductRepository productRepo;
@@ -41,16 +46,22 @@ public class ReindexService {
                     "Tính năng Elasticsearch đang tắt (app.search.use-elasticsearch=false)");
         }
 
-        IndexOperations io = ops.indexOps(ProductSearchDocument.class);
-        if (io.exists()) {
-            io.delete();
-        }
-        io.createWithMapping();
+        try {
+            IndexOperations io = ops.indexOps(ProductSearchDocument.class);
+            if (io.exists()) {
+                io.delete();
+            }
+            io.createWithMapping();
 
-        var products = productRepo.findAll();
-        if (!products.isEmpty()) {
-            indexer.indexAll(products);
+            var products = productRepo.findAll();
+            if (!products.isEmpty()) {
+                indexer.indexAll(products);
+            }
+            return products.size();
+        } catch (DataAccessException e) {
+            log.error("Không thể kết nối tới Elasticsearch để reindex: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.UPSTREAM_UNAVAILABLE,
+                    "Elasticsearch hiện không khả dụng, vui lòng kiểm tra lại service tìm kiếm");
         }
-        return products.size();
     }
 }
